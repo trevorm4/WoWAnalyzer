@@ -116,7 +116,7 @@ class EssenceFont extends Analyzer {
     }
     this.expected_duration = (3000 + extra_secs * 1000) / (1 + this.haste.current);
     this.last_ef = event.timestamp;
-    this.castEF += 1;
+    this.castEF += 2;
     this.total += this.uniqueTargets.size || 0;
     this.uniqueTargets.clear();
   }
