@@ -12,7 +12,6 @@ import ItemHealingDone from 'parser/ui/ItemHealingDone';
 
 const debug = false;
 
-//TODO clean up and make easier to add triggers
 class ThunderFocusTea extends Analyzer {
   castsTftRsk: number = 0;
   buffedRSK: number = 0;
@@ -65,7 +64,7 @@ class ThunderFocusTea extends Analyzer {
           break;
         }
         default: {
-          debug && console.log('TFT used on unknown ability id ' + event.ability.guid);
+          debug && console.log('FT TFT used on unknown ability id ' + event.ability.guid);
         }
       }
       this.usedFirstEmpower = false;
