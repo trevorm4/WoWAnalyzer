@@ -12,6 +12,8 @@ import STATISTIC_CATEGORY from 'parser/ui/STATISTIC_CATEGORY';
 import { STATISTIC_ORDER } from 'parser/ui/StatisticsListBox';
 import Haste from 'parser/shared/modules/Haste';
 import { SPELL_COLORS } from '../../constants';
+import BoringSpellValueText from 'parser/ui/BoringSpellValueText';
+import ItemHealingDone from 'parser/ui/ItemHealingDone';
 
 const debug = false;
 
@@ -199,6 +201,10 @@ class ThunderFocusTea extends Analyzer {
         size="flexible"
         category={STATISTIC_CATEGORY.GENERAL}
       >
+        <BoringSpellValueText spellId={TALENTS_MONK.FOCUSED_THUNDER_TALENT.id}>
+          <ItemHealingDone amount={0} />
+          <br />
+        </BoringSpellValueText>
         <div className="pad">
           <label>
             <SpellLink id={SPELLS.THUNDER_FOCUS_TEA.id} /> usage

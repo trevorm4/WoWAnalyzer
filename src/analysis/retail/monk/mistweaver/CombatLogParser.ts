@@ -30,6 +30,7 @@ import NourishingChi from './modules/spells/NourishingChi';
 import RisingSunRevival from './modules/spells/UpliftedSpirits';
 import BonedustBrewAverageTargets from './modules/spells/BonedustBrewAverageTargets';
 import FaelineStompHealing from './modules/spells/FaelineStompHealing';
+import FocusedThunder from './modules/spells/FocusedThunder';
 import AncientTeachingsoftheMonastery from './modules/spells/AncientTeachingsoftheMonastery';
 import CloudedFocus from './modules/spells/CloudedFocus';
 import EnvelopingBreath from './modules/spells/EnvelopingBreath';
@@ -115,6 +116,7 @@ class CombatLogParser extends CoreCombatLogParser {
     EssenceFontCancelled: EssenceFontCancelled,
     faelineStomp: FaelineStomp,
     faelineStompHealing: FaelineStompHealing,
+    focusedThunder: FocusedThunder,
     invokersDelight: InvokersDelight,
     invokeChiJi: InvokeChiJi,
     invokeYulon: InvokeYulon,
