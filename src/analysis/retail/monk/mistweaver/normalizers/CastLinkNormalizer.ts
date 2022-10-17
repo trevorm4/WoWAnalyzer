@@ -4,13 +4,10 @@ import { Options } from 'parser/core/Module';
 import { TALENTS_MONK } from 'common/TALENTS';
 import {
   AbilityEvent,
-  AnyEvent,
   ApplyBuffEvent,
   EventType,
-  GetRelatedEvents,
   HasRelatedEvent,
   RemoveBuffEvent,
-  RefreshBuffEvent,
 } from 'parser/core/Events';
 
 export const APPLIED_HEAL = 'AppliedHeal';
@@ -33,69 +30,73 @@ const EVENT_LINKS: EventLink[] = [
   // link renewing mist apply to its CastEvent
   {
     linkRelation: FROM_HARDCAST,
-    reverseLinkRelation: APPLIED_HEAL,
-    linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
-    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
-    referencedEventId: TALENTS_MONK.RENEWING_MIST_TALENT.id,
-    referencedEventType: [EventType.Cast],
+    linkingEventId: [TALENTS_MONK.RENEWING_MIST_TALENT.id],
+    linkingEventType: [EventType.Cast],
+    referencedEventId: SPELLS.RENEWING_MIST_HEAL.id,
+    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
+    reverseLinkRelation: FROM_HARDCAST,
     forwardBufferMs: CAST_BUFFER_MS,
     backwardBufferMs: CAST_BUFFER_MS,
   },
   // link Enveloping Mist apply to its cast
   {
     linkRelation: FROM_HARDCAST,
-    reverseLinkRelation: APPLIED_HEAL,
-    linkingEventId: [TALENTS_MONK.ENVELOPING_MIST_TALENT.id, SPELLS.ENVELOPING_MIST_TFT.id],
-    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
-    referencedEventId: TALENTS_MONK.ENVELOPING_MIST_TALENT.id,
-    referencedEventType: EventType.Cast,
+    reverseLinkRelation: FROM_HARDCAST,
+    linkingEventId: TALENTS_MONK.ENVELOPING_MIST_TALENT.id,
+    linkingEventType: EventType.Cast,
+    referencedEventId: [TALENTS_MONK.ENVELOPING_MIST_TALENT.id, SPELLS.ENVELOPING_MIST_TFT.id],
+    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
     forwardBufferMs: CAST_BUFFER_MS,
     backwardBufferMs: CAST_BUFFER_MS,
   },
   // link renewing mist apply to the target it was removed from
   {
     linkRelation: BOUNCED,
+    reverseLinkRelation: BOUNCED,
     linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
-    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
+    linkingEventType: [EventType.RemoveBuff],
     referencedEventId: SPELLS.RENEWING_MIST_HEAL.id,
-    referencedEventType: [EventType.RemoveBuff],
-    backwardBufferMs: CAST_BUFFER_MS,
+    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
+    forwardBufferMs: CAST_BUFFER_MS,
     anyTarget: true,
     additionalCondition(linkingEvent, referencedEvent) {
       return (
-        (linkingEvent as ApplyBuffEvent).targetID !== (referencedEvent as RemoveBuffEvent).targetID
+        (referencedEvent as ApplyBuffEvent).targetID !== (linkingEvent as RemoveBuffEvent).targetID
       );
     },
   },
   // link renewing mist removal to its application event
   {
     linkRelation: BOUNCED,
+    reverseLinkRelation: BOUNCED,
     linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
-    linkingEventType: [EventType.RemoveBuff],
+    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
     referencedEventId: SPELLS.RENEWING_MIST_HEAL.id,
-    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
-    backwardBufferMs: MAX_REM_DURATION,
+    referencedEventType: [EventType.RemoveBuff],
+    forwardBufferMs: MAX_REM_DURATION,
   },
   // link ReM to an EnvM/RSK cast
   {
     linkRelation: FROM_RAPID_DIFFUSION,
-    linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
-    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
-    referencedEventId: [
+    reverseLinkRelation: FROM_RAPID_DIFFUSION,
+    linkingEventId: [
       TALENTS_MONK.RISING_SUN_KICK_TALENT.id,
       TALENTS_MONK.ENVELOPING_MIST_TALENT.id,
       SPELLS.ENVELOPING_MIST_TFT.id,
     ],
-    referencedEventType: [EventType.Cast],
-    backwardBufferMs: CAST_BUFFER_MS,
+    linkingEventType: [EventType.Cast],
+    referencedEventId: SPELLS.RENEWING_MIST_HEAL.id,
+    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
+    forwardBufferMs: CAST_BUFFER_MS,
     anyTarget: true,
-    additionalCondition(linkingEvent) {
-      return !HasRelatedEvent(linkingEvent, FROM_HARDCAST);
+    additionalCondition(linkingEvent, referencedEvent) {
+      return !HasRelatedEvent(referencedEvent, FROM_HARDCAST);
     },
   },
   // two REMs happen in same timestamp when dancing mists procs
   {
     linkRelation: FROM_DANCING_MISTS,
+    reverseLinkRelation: FROM_RAPID_DIFFUSION,
     linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
     linkingEventType: [EventType.ApplyBuff],
     referencedEventId: [SPELLS.RENEWING_MIST_HEAL.id],
@@ -103,21 +104,22 @@ const EVENT_LINKS: EventLink[] = [
     anyTarget: true,
     additionalCondition(linkingEvent, referencedEvent) {
       return (
-        (linkingEvent as ApplyBuffEvent).targetID !== (referencedEvent as ApplyBuffEvent).targetID
+        (referencedEvent as ApplyBuffEvent).targetID !== (linkingEvent as ApplyBuffEvent).targetID
       );
     },
   },
   // misty peaks proc from a ReM hot event
   {
     linkRelation: FROM_MISTY_PEAKS,
-    linkingEventId: [TALENTS_MONK.ENVELOPING_MIST_TALENT.id],
-    linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
-    referencedEventId: SPELLS.RENEWING_MIST_HEAL.id,
-    referencedEventType: [EventType.Heal],
+    reverseLinkRelation: FROM_MISTY_PEAKS,
+    linkingEventId: SPELLS.RENEWING_MIST_HEAL.id,
+    linkingEventType: [EventType.Heal],
+    referencedEventId: TALENTS_MONK.ENVELOPING_MIST_TALENT.id,
+    referencedEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
     anyTarget: true,
-    backwardBufferMs: 50,
-    additionalCondition(linkingEvent) {
-      return !HasRelatedEvent(linkingEvent, FROM_HARDCAST);
+    forwardBufferMs: 50,
+    additionalCondition(linkingEvent, referencedEvent) {
+      return !HasRelatedEvent(referencedEvent, FROM_HARDCAST);
     },
   },
 ];
@@ -136,7 +138,7 @@ class CastLinkNormalizer extends EventLinkNormalizer {
     super(options, EVENT_LINKS);
   }
 }
-
+/*
 // given list of events, find event closest to given timestamp
 function getClosestEvent(timestamp: number, events: AnyEvent[]): AnyEvent {
   let minEvent = events[0];
@@ -146,7 +148,7 @@ function getClosestEvent(timestamp: number, events: AnyEvent[]): AnyEvent {
     }
   });
   return minEvent;
-}
+}*/
 
 /** Returns true iff the given buff application or heal can be matched back to a hardcast */
 export function isFromHardcast(event: AbilityEvent<any>): boolean {
@@ -163,21 +165,6 @@ export function isFromHardcast(event: AbilityEvent<any>): boolean {
   }
   if (HasRelatedEvent(event, FROM_HARDCAST)) {
     return true;
-  }
-  if (HasRelatedEvent(event, BOUNCED)) {
-    const relatedEvents = GetRelatedEvents(event, BOUNCED);
-    // There can be multiple linked applications/removals if multiple ReM's bouce close together
-    // so filter out each linked events and find the one with the closest timestamp
-    const minEvent =
-      relatedEvents.length > 1 ? getClosestEvent(event.timestamp, relatedEvents) : relatedEvents[0];
-    // we linked event as sourced from either a remove, apply, or refresh, so we recurse to track down the source of the linked event
-    if (minEvent.type === EventType.ApplyBuff) {
-      return isFromHardcast(minEvent as ApplyBuffEvent);
-    } else if (minEvent.type === EventType.RemoveBuff) {
-      return isFromHardcast(minEvent as RemoveBuffEvent);
-    } else {
-      return isFromHardcast(minEvent as RefreshBuffEvent);
-    }
   }
   return false;
 }

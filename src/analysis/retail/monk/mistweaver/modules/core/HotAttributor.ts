@@ -1,7 +1,14 @@
 import SPELLS from 'common/SPELLS';
 import { TALENTS_MONK } from 'common/TALENTS';
 import Analyzer, { Options, SELECTED_PLAYER } from 'parser/core/Analyzer';
-import Events, { ApplyBuffEvent, RefreshBuffEvent } from 'parser/core/Events';
+import Events, {
+  AnyEvent,
+  ApplyBuffEvent,
+  EventType,
+  GetRelatedEvents,
+  RefreshBuffEvent,
+  RemoveBuffEvent,
+} from 'parser/core/Events';
 import HotTracker, { Attribution } from 'parser/shared/modules/HotTracker';
 import { isFromHardcast } from '../../normalizers/CastLinkNormalizer';
 import HotTrackerMW from '../core/HotTrackerMW';
@@ -35,10 +42,42 @@ class HotAttributor extends Analyzer {
     );
   }
 
+  castEvent(event: AnyEvent): RefreshBuffEvent | ApplyBuffEvent {
+    if (event.type === EventType.RefreshBuff) {
+      return event as RefreshBuffEvent;
+    }
+    return event as ApplyBuffEvent;
+  }
+
+  attributeBounces(event: ApplyBuffEvent | RefreshBuffEvent | RemoveBuffEvent) {
+    const relatedEvents = GetRelatedEvents(event, 'Bounced');
+    if (event.type === EventType.RemoveBuff) {
+      for (let i = 0; i < relatedEvents.length; i += 1) {
+        this.attributeBounces(this.castEvent(relatedEvents[i]));
+      }
+    }
+    if (
+      !this.hotTracker.hots[event.targetID] ||
+      !this.hotTracker.hots[event.targetID][event.ability.guid] ||
+      this.hotTracker.hots[event.targetID][event.ability.guid].attributions.length > 0
+    ) {
+      return;
+    }
+    this.hotTracker.addAttributionFromApply(this.REMAttrib, this.castEvent(event));
+
+    for (let i = 0; i < relatedEvents.length; i += 1) {
+      const linkedEvent = relatedEvents[i];
+      if (linkedEvent.type === EventType.ApplyBuff || linkedEvent.type === EventType.RefreshBuff) {
+        this.attributeBounces(linkedEvent);
+      }
+    }
+  }
+
   onApplyRem(event: ApplyBuffEvent | RefreshBuffEvent) {
     if (event.prepull || isFromHardcast(event)) {
       debug && console.log(event.ability.name + ' true ' + event.targetID + ' ' + event.timestamp);
       this.hotTracker.addAttributionFromApply(this.REMAttrib, event);
+      this.attributeBounces(event);
     }
   }
 
