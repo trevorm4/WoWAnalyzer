@@ -7,6 +7,7 @@ import {
   ApplyBuffEvent,
   EventType,
   HasRelatedEvent,
+  RefreshBuffEvent,
   RemoveBuffEvent,
 } from 'parser/core/Events';
 
@@ -167,6 +168,10 @@ export function isFromHardcast(event: AbilityEvent<any>): boolean {
     return true;
   }
   return false;
+}
+
+export function isFromMistyPeaks(event: ApplyBuffEvent | RefreshBuffEvent) {
+  return HasRelatedEvent(event, FROM_MISTY_PEAKS);
 }
 
 export default CastLinkNormalizer;
