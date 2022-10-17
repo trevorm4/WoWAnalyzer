@@ -65,6 +65,13 @@ class HotAttributor extends Analyzer {
             this.owner.formatTimestamp(event.timestamp),
         );
       this.hotTracker.addAttributionFromApply(this.REMRapidDiffusionAttrib, event);
+    } else {
+      debug &&
+        console.log(
+          'Unattributed Renewing mist at ',
+          this.owner.formatTimestamp(event.timestamp),
+          event,
+        );
     }
   }
 
