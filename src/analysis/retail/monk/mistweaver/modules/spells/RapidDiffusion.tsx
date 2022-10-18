@@ -20,6 +20,7 @@ class RapidDiffusion extends Analyzer {
   protected hotTracker!: HotTrackerMW;
   numExtraRems: number = 0;
   extraRemHeal: number = 0;
+  extraRemHits: number = 0;
   extraVivCleaves: number = 0;
   extraVivHealing: number = 0;
   extraVivOverhealing: number = 0;
@@ -65,6 +66,7 @@ class RapidDiffusion extends Analyzer {
     const hot = this.hotTracker.hots[playerId][SPELLS.RENEWING_MIST_HEAL.id];
     if (this.hotTracker.fromRapidDiffusion(hot)) {
       this.extraRemHeal += event.amount || 0;
+      this.extraRemHits += 1;
     }
   }
 
@@ -78,6 +80,7 @@ class RapidDiffusion extends Analyzer {
     }
     const hot = this.hotTracker.hots[playerId][SPELLS.RENEWING_MIST_HEAL.id];
     if (this.hotTracker.fromRapidDiffusion(hot)) {
+      console.log('rem hit with events', hot.attributions);
       this.extraVivCleaves += 1;
       this.extraVivHealing += event.amount || 0;
       this.extraVivOverhealing += event.overheal || 0;
@@ -99,6 +102,10 @@ class RapidDiffusion extends Analyzer {
             <li>
               Direct healing from extra <SpellLink id={TALENTS_MONK.RENEWING_MIST_TALENT.id} />:{' '}
               {formatNumber(this.extraRemHeal)}
+            </li>
+            <li>
+              Extra <SpellLink id={TALENTS_MONK.RENEWING_MIST_TALENT.id} /> Hits:{' '}
+              {this.extraRemHits}
             </li>
             <li>
               Extra <SpellLink id={SPELLS.VIVIFY.id} /> cleaves: {this.extraVivCleaves}

@@ -2,6 +2,7 @@ import SPELLS from 'common/SPELLS';
 import { TALENTS_MONK } from 'common/TALENTS';
 import Analyzer, { Options, SELECTED_PLAYER } from 'parser/core/Analyzer';
 import Events, { ApplyBuffEvent, RefreshBuffEvent } from 'parser/core/Events';
+import Combatants from 'parser/shared/modules/Combatants';
 import HotTracker, { Attribution } from 'parser/shared/modules/HotTracker';
 import {
   isFromDancingMists,
@@ -16,9 +17,11 @@ const debug = true;
 class HotAttributor extends Analyzer {
   static dependencies = {
     hotTracker: HotTrackerMW,
+    combatants: Combatants,
   };
 
   protected hotTracker!: HotTrackerMW;
+  protected combatants!: Combatants;
   envMistHardcastAttrib = HotTracker.getNewAttribution('Enveloping Mist Hardcast');
   envMistMistyPeaksAttrib = HotTracker.getNewAttribution('Enveloping Mist Misty Peaks Proc');
   REMHardcastAttrib = HotTracker.getNewAttribution('Renewing Mist Hardcast');
@@ -45,17 +48,24 @@ class HotAttributor extends Analyzer {
   }
 
   onApplyRem(event: ApplyBuffEvent | RefreshBuffEvent) {
-    if (event.prepull || isFromHardcast(event)) {
-      debug &&
-        console.log(
-          'Attributed Renewing Mist hardcast at ' + this.owner.formatTimestamp(event.timestamp),
-        );
-      this.hotTracker.addAttributionFromApply(this.REMHardcastAttrib, event);
-    } else if (isFromDancingMists(event)) {
+    if (
+      !this.hotTracker.hots[event.targetID] ||
+      !this.hotTracker.hots[event.targetID][event.ability.guid] ||
+      this.hotTracker.hots[event.targetID][event.ability.guid].attributions.length > 0
+    ) {
+      return;
+    }
+
+    if (isFromDancingMists(event)) {
       debug &&
         console.log(
           'Attributed Renewing Mist Dancing mists proc at ' +
             this.owner.formatTimestamp(event.timestamp),
+          'on ',
+          this.combatants.getEntity(event)?.name,
+          event,
+          'with related events ',
+          event._linkedEvents,
         );
       this.hotTracker.addAttributionFromApply(this.REMDancingMistsAttrib, event);
     } else if (isFromRapidDiffusion(event)) {
@@ -63,8 +73,16 @@ class HotAttributor extends Analyzer {
         console.log(
           'Attributed Renewing Mist Rapid Diffusion proc at ' +
             this.owner.formatTimestamp(event.timestamp),
+          'with related events ',
+          event._linkedEvents,
         );
       this.hotTracker.addAttributionFromApply(this.REMRapidDiffusionAttrib, event);
+    } else if (event.prepull || isFromHardcast(event)) {
+      debug &&
+        console.log(
+          'Attributed Renewing Mist hardcast at ' + this.owner.formatTimestamp(event.timestamp),
+        );
+      this.hotTracker.addAttributionFromApply(this.REMHardcastAttrib, event);
     } else {
       debug &&
         console.log(

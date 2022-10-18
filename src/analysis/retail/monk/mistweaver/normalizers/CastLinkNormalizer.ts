@@ -22,7 +22,7 @@ export const FROM_RAPID_DIFFUSION = 'FromRD'; // can be linked to env mist or rs
 
 const CAST_BUFFER_MS = 100;
 const MAX_REM_DURATION = 77000;
-const FOUND_REMS = new Set();
+const FOUND_REMS = new Map<number, number>();
 const debug = true;
 
 /*
@@ -62,9 +62,17 @@ const EVENT_LINKS: EventLink[] = [
     referencedEventType: [EventType.RemoveBuff],
     backwardBufferMs: CAST_BUFFER_MS,
     anyTarget: true,
+    maximumLinks: 1,
     additionalCondition(linkingEvent, referencedEvent) {
+      const relatedEvents = GetRelatedEvents(referencedEvent, BOUNCED);
+      const hasApply = relatedEvents.some(function (ev) {
+        return ev.type === EventType.ApplyBuff;
+      });
       return (
-        (linkingEvent as ApplyBuffEvent).targetID !== (referencedEvent as RemoveBuffEvent).targetID
+        !hasApply &&
+        (linkingEvent as ApplyBuffEvent).targetID !==
+          (referencedEvent as RemoveBuffEvent).targetID &&
+        HasRelatedEvent(linkingEvent, FROM_RAPID_DIFFUSION)
       );
     },
   },
@@ -80,6 +88,7 @@ const EVENT_LINKS: EventLink[] = [
   // link ReM to an EnvM/RSK cast
   {
     linkRelation: FROM_RAPID_DIFFUSION,
+    reverseLinkRelation: FROM_RAPID_DIFFUSION,
     linkingEventId: [SPELLS.RENEWING_MIST_HEAL.id],
     linkingEventType: [EventType.ApplyBuff, EventType.RefreshBuff],
     referencedEventId: [
@@ -90,8 +99,12 @@ const EVENT_LINKS: EventLink[] = [
     referencedEventType: [EventType.Cast],
     backwardBufferMs: CAST_BUFFER_MS,
     anyTarget: true,
-    additionalCondition(linkingEvent) {
-      return !HasRelatedEvent(linkingEvent, FROM_HARDCAST);
+    maximumLinks: 1,
+    additionalCondition(linkingEvent, refEvent) {
+      return (
+        !HasRelatedEvent(linkingEvent, FROM_HARDCAST) &&
+        !HasRelatedEvent(refEvent, FROM_RAPID_DIFFUSION)
+      );
     },
   },
   // two REMs happen in same timestamp when dancing mists procs
@@ -102,6 +115,8 @@ const EVENT_LINKS: EventLink[] = [
     referencedEventId: [SPELLS.RENEWING_MIST_HEAL.id],
     referencedEventType: [EventType.ApplyBuff],
     anyTarget: true,
+    forwardBufferMs: 100,
+    maximumLinks: 1,
     additionalCondition(linkingEvent, referencedEvent) {
       return (
         (linkingEvent as ApplyBuffEvent).targetID !== (referencedEvent as ApplyBuffEvent).targetID
@@ -152,10 +167,17 @@ function getClosestEvent(timestamp: number, events: AnyEvent[]): AnyEvent {
 /** Returns true iff the given buff application or heal can be matched back to a hardcast */
 export function isFromHardcast(event: AbilityEvent<any>): boolean {
   console.log('Checking is hardcast at ', event.timestamp, event);
+  if (HasRelatedEvent(event, FROM_HARDCAST)) {
+    debug &&
+      console.log(event, ' at ', event.timestamp, ' is a first apply from a Renewing Mist Cast');
+    return true;
+  }
+
   if (HasRelatedEvent(event, FROM_RAPID_DIFFUSION) || HasRelatedEvent(event, FROM_MISTY_PEAKS)) {
     debug && console.log(event, ' at ', event.timestamp, ' linked to either RD or MP');
     return false;
   }
+
   // 2nd ReM application is the duplicated event
   if (HasRelatedEvent(event, FROM_DANCING_MISTS)) {
     const partnerEvent = getClosestEvent(
@@ -163,10 +185,10 @@ export function isFromHardcast(event: AbilityEvent<any>): boolean {
       GetRelatedEvents(event, FROM_DANCING_MISTS),
     );
     if (event.timestamp === partnerEvent.timestamp) {
-      if (FOUND_REMS.has(event.timestamp)) {
+      if (FOUND_REMS.get(event.timestamp) === (event as ApplyBuffEvent).targetID) {
         return false;
       } else {
-        FOUND_REMS.add(event.timestamp);
+        FOUND_REMS.set(event.timestamp, (event as ApplyBuffEvent).targetID);
       }
     } else if (event.timestamp > partnerEvent.timestamp) {
       debug &&
@@ -174,11 +196,7 @@ export function isFromHardcast(event: AbilityEvent<any>): boolean {
       return false;
     }
   }
-  if (HasRelatedEvent(event, FROM_HARDCAST)) {
-    debug &&
-      console.log(event, ' at ', event.timestamp, ' is a first apply from a Renewing Mist Cast');
-    return true;
-  }
+
   if (HasRelatedEvent(event, BOUNCED)) {
     debug && console.log(event, ' at ', event.timestamp, ' is a bounced REM');
     const relatedEvents = GetRelatedEvents(event, BOUNCED);
@@ -204,11 +222,28 @@ export function isFromMistyPeaks(event: ApplyBuffEvent | RefreshBuffEvent) {
 }
 
 export function isFromDancingMists(event: ApplyBuffEvent | RefreshBuffEvent): boolean {
-  return HasRelatedEvent(event, FROM_DANCING_MISTS) && !isFromHardcast(event);
+  if (HasRelatedEvent(event, FROM_DANCING_MISTS)) {
+    const partnerEvent = getClosestEvent(
+      event.timestamp,
+      GetRelatedEvents(event, FROM_DANCING_MISTS),
+    );
+    if (event.timestamp === partnerEvent.timestamp) {
+      if (FOUND_REMS.get(event.timestamp) !== (event as ApplyBuffEvent).targetID) {
+        return true;
+      } else {
+        return false;
+      }
+    } else if (event.timestamp > partnerEvent.timestamp) {
+      debug &&
+        console.log(event, ' at ', event.timestamp, ' is a duplicated REM from Dancing Mists');
+      return true;
+    }
+  }
+  return false;
 }
 
 export function isFromRapidDiffusion(event: ApplyBuffEvent | RefreshBuffEvent): boolean {
-  return HasRelatedEvent(event, FROM_RAPID_DIFFUSION);
+  return HasRelatedEvent(event, FROM_RAPID_DIFFUSION) && !isFromHardcast(event);
 }
 
 export default CastLinkNormalizer;

@@ -23,26 +23,27 @@ class HotTrackerMW extends HotTracker {
   }
 
   fromDancingMists(hot: Tracker): boolean {
-    return (
-      hot.attributions.some(function (attr) {
-        return attr.name.includes('Dancing Mists');
-      }) &&
-      !hot.attributions.some(function (attr) {
-        return attr.name.includes('Hardcast');
-      })
-    );
+    return hot.attributions.some(function (attr) {
+      return attr.name.includes('Dancing Mists');
+    });
   }
 
   fromMistyPeaks(hot: Tracker): boolean {
-    return hot.attributions.some(function (attr) {
-      return attr.name.includes('Misty Peaks');
-    });
+    return (
+      hot.attributions.some(function (attr) {
+        return attr.name.includes('Misty Peaks');
+      }) && !this.fromHardcast(hot)
+    );
   }
 
   fromHardcast(hot: Tracker): boolean {
-    return hot.attributions.some(function (attr) {
-      return attr.name.includes('Hardcast');
-    });
+    return (
+      hot.attributions.some(function (attr) {
+        return attr.name.includes('Hardcast');
+      }) &&
+      !this.fromRapidDiffusion(hot) &&
+      !this.fromDancingMists(hot)
+    );
   }
 
   fromRapidDiffusion(hot: Tracker): boolean {

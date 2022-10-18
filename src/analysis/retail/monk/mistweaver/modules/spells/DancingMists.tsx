@@ -19,6 +19,7 @@ class DancingMists extends Analyzer {
 
   protected hotTracker!: HotTrackerMW;
   numExtraRems: number = 0;
+  extraRemHits: number = 0;
   extraRemHeal: number = 0;
   extraVivCleaves: number = 0;
   extraVivHealing: number = 0;
@@ -65,6 +66,7 @@ class DancingMists extends Analyzer {
     const hot = this.hotTracker.hots[playerId][SPELLS.RENEWING_MIST_HEAL.id];
     if (this.hotTracker.fromDancingMists(hot)) {
       this.extraRemHeal += event.amount || 0;
+      this.extraRemHits += 1;
     }
   }
 
@@ -78,6 +80,7 @@ class DancingMists extends Analyzer {
     }
     const hot = this.hotTracker.hots[playerId][SPELLS.RENEWING_MIST_HEAL.id];
     if (this.hotTracker.fromDancingMists(hot)) {
+      console.log('dm hit with ', hot.attributions);
       this.extraVivCleaves += 1;
       this.extraVivHealing += event.amount || 0;
       this.extraVivOverhealing += event.overheal || 0;
@@ -95,6 +98,10 @@ class DancingMists extends Analyzer {
             <li>
               Extra <SpellLink id={TALENTS_MONK.RENEWING_MIST_TALENT.id} /> procs:{' '}
               {this.numExtraRems}
+            </li>
+            <li>
+              Extra <SpellLink id={TALENTS_MONK.RENEWING_MIST_TALENT.id} /> hits:{' '}
+              {this.extraRemHits}
             </li>
             <li>
               Direct healing from extra <SpellLink id={TALENTS_MONK.RENEWING_MIST_TALENT.id} />:{' '}

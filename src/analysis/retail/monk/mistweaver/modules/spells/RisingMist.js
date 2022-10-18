@@ -36,7 +36,11 @@ class RisingMist extends Analyzer {
     let value = 0;
     this.hotTracker.hotHistory.forEach(
       function (hot) {
-        if (this.hotTracker.fromHardcast(hot)) {
+        if (
+          this.hotTracker.fromHardcast(hot) &&
+          !this.hotTracker.fromDancingMists(hot) &&
+          !this.hotTracker.fromRapidDiffusion(hot)
+        ) {
           value += hot.healingAfterOriginalEnd || 0;
         }
       }.bind(this),
