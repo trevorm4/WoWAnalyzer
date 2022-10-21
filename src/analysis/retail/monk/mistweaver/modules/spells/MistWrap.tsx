@@ -20,7 +20,7 @@ import { ABILITIES_AFFECTED_BY_HEALING_INCREASES } from '../../constants';
 const ENVELOPING_BREATH_BASE_DURATION = 6000;
 const HOT_INCREASE_SPELLS = ABILITIES_AFFECTED_BY_HEALING_INCREASES;
 
-class MistWrapEnvelopingBreath extends Analyzer {
+class MistWrap extends Analyzer {
   hotInfo: Map<string, HotInfo> = new Map<string, HotInfo>();
 
   effectiveHealing: number = 0;
@@ -136,7 +136,7 @@ class MistWrapEnvelopingBreath extends Analyzer {
   }
 }
 
-export default MistWrapEnvelopingBreath;
+export default MistWrap;
 
 type HotInfo = {
   applyTimeStamp: number;

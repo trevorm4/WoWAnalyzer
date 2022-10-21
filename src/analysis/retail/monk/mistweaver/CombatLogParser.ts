@@ -55,7 +55,7 @@ import InvokeChiJi from './modules/spells/InvokeChiJi';
 import JadeSerpentStatue from './modules/spells/JadeSerpentStatue';
 import Lifecycles from './modules/spells/Lifecycles';
 import ManaTea from './modules/spells/ManaTea';
-import MistWrapEnvelopingBreath from './modules/spells/MistWrapEnvelopingBreath';
+import MistWrap from './modules/spells/MistWrap';
 import RefreshingJadeWind from './modules/spells/RefreshingJadeWind';
 import RenewingMistDuringManaTea from './modules/spells/RenewingMistDuringManaTea';
 // import RisingMist from './modules/spells/RisingMist';
@@ -126,7 +126,7 @@ class CombatLogParser extends CoreCombatLogParser {
     jadeBond: JadeBond,
     lifecycles: Lifecycles,
     lifeCocoon: LifeCocoon,
-    mistWrapEnvelopingBreath: MistWrapEnvelopingBreath,
+    mistWrap: MistWrap,
     manaTea: ManaTea,
     nourishingCh: NourishingChi,
     refreshingJadeWind: RefreshingJadeWind,
