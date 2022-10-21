@@ -23,9 +23,12 @@ class HotTrackerMW extends HotTracker {
   }
 
   fromMistyPeaks(hot: Tracker): boolean {
-    return hot.attributions.some(function (attr) {
-      return attr.name.includes('Misty Peaks');
-    });
+    return (
+      hot.spellId === TALENTS_MONK.ENVELOPING_MIST_TALENT.id &&
+      hot.attributions.some(function (attr) {
+        return attr.name.includes('Misty Peaks');
+      })
+    );
   }
 
   fromHardcast(hot: Tracker): boolean {
@@ -80,6 +83,7 @@ class HotTrackerMW extends HotTracker {
       {
         spell: SPELLS.ENVELOPING_BREATH_HEAL,
         duration: envMistDuration,
+        maxDuration: envMistDuration,
         tickPeriod: 1000,
       },
     ];
