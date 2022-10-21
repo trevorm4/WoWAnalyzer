@@ -167,7 +167,7 @@ const spells = spellIndexableList({
     id: 115450,
     name: 'Detox',
     icon: 'ability_rogue_imrovedrecuperate',
-    manaCost: 650,
+    manaCost: 3250,
   },
 
   // Talents
