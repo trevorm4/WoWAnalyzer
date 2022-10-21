@@ -12,7 +12,7 @@ import Events, {
 } from 'parser/core/Events';
 import { ThresholdStyle, When } from 'parser/core/ParseResults';
 
-const TARGETSPERCAST = 78;
+const TARGETSPERCAST = 126; // 21 ticks * 6 targets
 
 class RefreshingJadeWind extends Analyzer {
   healsRJW: number = 0;
