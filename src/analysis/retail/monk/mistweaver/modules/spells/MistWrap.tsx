@@ -1,32 +1,36 @@
+import { formatNumber } from 'common/format';
 import SPELLS from 'common/SPELLS';
 import { TALENTS_MONK } from 'common/TALENTS';
 import { SpellLink } from 'interface';
 import Analyzer, { Options, SELECTED_PLAYER } from 'parser/core/Analyzer';
 import { calculateEffectiveHealing } from 'parser/core/EventCalculateLib';
-import Events, {
-  ApplyBuffEvent,
-  HealEvent,
-  RefreshBuffEvent,
-  RemoveBuffEvent,
-} from 'parser/core/Events';
-import BoringValueText from 'parser/ui/BoringValueText';
+import Events, { HealEvent } from 'parser/core/Events';
 import ItemHealingDone from 'parser/ui/ItemHealingDone';
 import Statistic from 'parser/ui/Statistic';
 import STATISTIC_CATEGORY from 'parser/ui/STATISTIC_CATEGORY';
 import STATISTIC_ORDER from 'parser/ui/STATISTIC_ORDER';
+import TalentSpellText from 'parser/ui/TalentSpellText';
 
 import { ABILITIES_AFFECTED_BY_HEALING_INCREASES } from '../../constants';
+import HotTrackerMW from '../core/HotTrackerMW';
 
 const ENVELOPING_BREATH_BASE_DURATION = 6000;
 const HOT_INCREASE_SPELLS = ABILITIES_AFFECTED_BY_HEALING_INCREASES;
 
 class MistWrap extends Analyzer {
+  static dependencies = {
+    hotTracker: HotTrackerMW,
+  };
+  protected hotTracker!: HotTrackerMW;
   hotInfo: Map<string, HotInfo> = new Map<string, HotInfo>();
 
-  effectiveHealing: number = 0;
-  overHealing: number = 0;
+  envbEffectiveHealing: number = 0;
+  envbOverHealing: number = 0;
+  envmEffectiveHealing: number = 0;
+  envmOverHealing: number = 0;
 
-  healingBoost: number = 0;
+  envmHealingBoost: number = 0;
+  envbHealingBoost: number = 0;
 
   constructor(options: Options) {
     super(options);
@@ -35,71 +39,70 @@ class MistWrap extends Analyzer {
       return;
     }
     this.addEventListener(
-      Events.applybuff.by(SELECTED_PLAYER).spell(SPELLS.ENVELOPING_BREATH_HEAL),
-      this.addToMap,
-    );
-    this.addEventListener(
-      Events.refreshbuff.by(SELECTED_PLAYER).spell(SPELLS.ENVELOPING_BREATH_HEAL),
-      this.addToMap,
-    );
-    this.addEventListener(
-      Events.removebuff.by(SELECTED_PLAYER).spell(SPELLS.ENVELOPING_BREATH_HEAL),
-      this.hotRemoved,
-    );
-    this.addEventListener(
-      Events.heal.by(SELECTED_PLAYER).spell(SPELLS.ENVELOPING_BREATH_HEAL),
+      Events.heal
+        .by(SELECTED_PLAYER)
+        .spell([
+          SPELLS.ENVELOPING_BREATH_HEAL,
+          SPELLS.ENVELOPING_MIST_TFT,
+          TALENTS_MONK.ENVELOPING_MIST_TALENT,
+        ]),
       this.hotHeal,
     );
     this.addEventListener(Events.heal.by(SELECTED_PLAYER), this.genericHeal);
   }
 
-  addToMap(event: ApplyBuffEvent | RefreshBuffEvent) {
-    const GUID = this.makeGUID(event);
-    this.hotInfo.set(GUID, {
-      applyTimeStamp: event.timestamp,
-      playerAppliedTo: GUID,
-    });
-  }
-
-  hotRemoved(event: RemoveBuffEvent) {
-    const GUID = this.makeGUID(event);
-    this.hotInfo.delete(GUID);
-  }
-
   hotHeal(event: HealEvent) {
-    const GUID = this.makeGUID(event);
-    // I didn't test if this is really needed but if it is then its most likely due to a tick healing before buff applied
-    // which is something we already don't care about so its fine
-    if (!this.hotInfo.has(GUID)) {
+    const targetId = event.targetID;
+    const spellId = event.ability.guid;
+    if (!this.hotTracker.hots[targetId] || !this.hotTracker.hots[targetId][spellId]) {
+      return;
+    }
+    const hot = this.hotTracker.hots[targetId][spellId];
+
+    if (hot.start + ENVELOPING_BREATH_BASE_DURATION >= event.timestamp) {
       return;
     }
 
-    const appliedDate = this.hotInfo.get(GUID)?.applyTimeStamp || 0;
-    if (appliedDate + ENVELOPING_BREATH_BASE_DURATION < event.timestamp) {
-      this.effectiveHealing += event.amount + (event.absorbed || 0);
-      this.overHealing += event.overheal || 0;
+    if (spellId === SPELLS.ENVELOPING_BREATH_HEAL.id) {
+      this.envbOverHealing += event.overheal || 0;
+      this.envbEffectiveHealing += event.amount || 0;
+    } else if (
+      spellId === TALENTS_MONK.ENVELOPING_MIST_TALENT.id ||
+      spellId === SPELLS.ENVELOPING_MIST_TFT.id
+    ) {
+      this.envmOverHealing += event.overheal || 0;
+      this.envmEffectiveHealing += event.amount || 0;
     }
   }
 
   genericHeal(event: HealEvent) {
-    if (!HOT_INCREASE_SPELLS.includes(event.ability.guid)) {
+    const targetId = event.targetID;
+    const spellId = event.ability.guid;
+    if (!this.hotTracker.hots[targetId] || !HOT_INCREASE_SPELLS.includes(spellId)) {
       return;
     }
-
-    const GUID = this.makeGUID(event);
-    if (!this.hotInfo.has(GUID)) {
+    const hots = [
+      this.hotTracker.hots[targetId][SPELLS.ENVELOPING_BREATH_HEAL.id],
+      this.hotTracker.hots[targetId][TALENTS_MONK.ENVELOPING_MIST_TALENT.id],
+      this.hotTracker.hots[targetId][SPELLS.ENVELOPING_MIST_TFT.id],
+    ].filter((tracker) => {
+      return tracker != null;
+    });
+    if (!hots.length) {
       return;
     }
-
-    const appliedDate = this.hotInfo.get(GUID)?.applyTimeStamp || 0;
-    if (appliedDate + ENVELOPING_BREATH_BASE_DURATION < event.timestamp) {
-      this.healingBoost += calculateEffectiveHealing(event, 0.1);
+    let latestHot = hots[0];
+    hots.forEach((hot) => {
+      if (hot.start < latestHot.start) {
+        latestHot = hot;
+      }
+    });
+    if (latestHot.start + ENVELOPING_BREATH_BASE_DURATION < event.timestamp) {
+      const boostedHealing = calculateEffectiveHealing(event, 0.1);
+      latestHot.spellId === SPELLS.ENVELOPING_BREATH_HEAL.id
+        ? (this.envbHealingBoost += boostedHealing)
+        : (this.envmHealingBoost += boostedHealing);
     }
-  }
-
-  makeGUID(event: HealEvent | ApplyBuffEvent | RefreshBuffEvent | RemoveBuffEvent): string {
-    // in theory, targetID is always defined here. in practice, covenant bugs (seed)
-    return event.targetID?.toString() + (event.targetInstance || '');
   }
 
   statistic() {
@@ -110,27 +113,39 @@ class MistWrap extends Analyzer {
         category={STATISTIC_CATEGORY.TALENTS}
         tooltip={
           <>
+            <SpellLink id={TALENTS_MONK.ENVELOPING_BREATH_TALENT.id} />
+            <br />
             Total Healing:{' '}
-            {(this.effectiveHealing + this.overHealing + this.healingBoost).toFixed(2)}
+            {formatNumber(this.envbEffectiveHealing + this.envbOverHealing + this.envbHealingBoost)}
             <br />
-            Effective Healing: {this.effectiveHealing.toFixed(2)}
+            Effective Healing: {formatNumber(this.envbEffectiveHealing)}
             <br />
-            Overhealing: {this.overHealing.toFixed(2)}
+            Overhealing: {formatNumber(this.envbOverHealing)}
             <br />
-            Healing Boost: {this.healingBoost.toFixed(2)}
+            Healing Boost: {formatNumber(this.envbHealingBoost)}
+            <SpellLink id={TALENTS_MONK.ENVELOPING_MIST_TALENT.id} />
+            <br />
+            Total Healing:{' '}
+            {formatNumber(this.envmEffectiveHealing + this.envmOverHealing + this.envmHealingBoost)}
+            <br />
+            Effective Healing: {formatNumber(this.envmEffectiveHealing)}
+            <br />
+            Overhealing: {formatNumber(this.envmOverHealing)}
+            <br />
+            Healing Boost: {formatNumber(this.envmHealingBoost)}
           </>
         }
       >
-        <BoringValueText
-          label={
-            <>
-              <SpellLink id={SPELLS.ENVELOPING_BREATH_HEAL.id} /> gained from{' '}
-              <SpellLink id={TALENTS_MONK.MIST_WRAP_TALENT.id} />
-            </>
-          }
-        >
-          <ItemHealingDone amount={this.effectiveHealing + this.healingBoost} />
-        </BoringValueText>
+        <TalentSpellText talent={TALENTS_MONK.MIST_WRAP_TALENT}>
+          <ItemHealingDone
+            amount={
+              this.envbEffectiveHealing +
+              this.envbHealingBoost +
+              this.envmHealingBoost +
+              this.envmEffectiveHealing
+            }
+          />
+        </TalentSpellText>
       </Statistic>
     );
   }

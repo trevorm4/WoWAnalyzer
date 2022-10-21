@@ -65,6 +65,11 @@ class HotTrackerMW extends HotTracker {
         tickPeriod: 2000,
         maxDuration: essenceFontDuration * 2,
       },
+      {
+        spell: SPELLS.ENVELOPING_BREATH_HEAL,
+        duration: envMistDuration,
+        tickPeriod: 1000,
+      },
     ];
   }
 }
