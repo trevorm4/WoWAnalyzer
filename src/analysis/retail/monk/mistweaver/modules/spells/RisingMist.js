@@ -111,6 +111,7 @@ class RisingMist extends Analyzer {
   extraEFhealing = 0;
   extraEFOverhealing = 0;
   extraEFAbsorbed = 0;
+  upwellingOffset = 0;
 
   constructor(...options) {
     super(...options);
@@ -131,6 +132,9 @@ class RisingMist extends Analyzer {
       Events.heal.by(SELECTED_PLAYER).spell(SPELLS.GUSTS_OF_MISTS),
       this.handleMastery,
     );
+    this.upwellingOffset = this.selectedCombatant.hasTalent(TALENTS_MONK.UPWELLING_TALENT)
+      ? 4000
+      : 0; // upwelling makes EF hot last 4 seconds extra
   }
 
   hasAttribution(attributions, name) {
@@ -152,8 +156,7 @@ class RisingMist extends Analyzer {
     const object = this.hotTracker.hots[targetId][SPELLS.ESSENCE_FONT_BUFF.id]
       ? this.hotTracker.hots[targetId][SPELLS.ESSENCE_FONT_BUFF.id]
       : this.hotTracker.hots[targetId][SPELLS.FAELINE_STOMP_ESSENCE_FONT.id];
-
-    if (object.originalEnd < event.timestamp) {
+    if (object.originalEnd + this.upwellingOffset < event.timestamp) {
       if (!this.masteryTickTock) {
         this.extraMasteryHits += 1;
         this.extraMasteryhealing += event.amount || 0;

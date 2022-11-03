@@ -11,6 +11,7 @@ import STATISTIC_CATEGORY from 'parser/ui/STATISTIC_CATEGORY';
 import STATISTIC_ORDER from 'parser/ui/STATISTIC_ORDER';
 
 const BASE_HOT_TIME = 8000; //ef's hot base time
+const HOT_EXTENSION = 4000; // 4 extra seconds from UW talent
 const BASE_BOLTS = 17; //18 base but we start counting at 0 so 18th on bolt count = 19th bolt
 
 /**
@@ -105,6 +106,13 @@ class Upwelling extends Analyzer {
     }
   }
 
+  isTickFromUW(event: HealEvent) {
+    const diff = event.timestamp - BASE_HOT_TIME;
+    const hot = this.hotMap.get(event.targetID)!;
+    // is tick at least after 8s and does the tick occur less than 4s after original expiration
+    return diff > hot.applicationTime && diff - hot.applicationTime < HOT_EXTENSION;
+  }
+
   hotHeal(event: HealEvent) {
     const targetID = event.targetID; //short hand
 
@@ -115,7 +123,7 @@ class Upwelling extends Analyzer {
 
     if (this.hotMap.has(targetID)) {
       //check if hot heals before bolt hits (should never happen but logs)
-      if (hot.fullCount || event.timestamp - BASE_HOT_TIME > hot.applicationTime) {
+      if (hot.fullCount || this.isTickFromUW(event)) {
         //check if its an extra bolt from ef or was part of the core 18
         this.efHotHeal += (event.amount || 0) + (event.absorbed || 0);
         this.efHotOverheal += event.overheal || 0;
@@ -182,7 +190,7 @@ class Upwelling extends Analyzer {
       )
     ) {
       //do they have the hot
-      if (hot.fullCount || event.timestamp - BASE_HOT_TIME > hot.applicationTime) {
+      if (hot.fullCount || this.isTickFromUW(event)) {
         if (!this.masteryTickTock) {
           this.masteryHit += 1;
           this.masteryHealing += event.amount || 0;
