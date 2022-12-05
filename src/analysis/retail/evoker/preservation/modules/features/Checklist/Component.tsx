@@ -40,9 +40,6 @@ const PreservationEvokerChecklist = ({ combatant, castEfficiency, thresholds }: 
         {combatant.hasTalent(TALENTS_EVOKER.SPIRITBLOOM_TALENT) && (
           <AbilityRequirement spell={SPELLS.SPIRITBLOOM_CAST.id} />
         )}
-        {combatant.hasTalent(TALENTS_EVOKER.REVERSION_TALENT) && (
-          <AbilityRequirement spell={TALENTS_EVOKER.REVERSION_TALENT.id} />
-        )}
       </Rule>
       <Rule
         name="Use your cooldowns effectively"

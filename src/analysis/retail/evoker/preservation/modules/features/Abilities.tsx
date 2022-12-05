@@ -17,9 +17,6 @@ class Abilities extends CoreAbilities {
           base: 1500,
         },
         enabled: combatant.hasTalent(TALENTS.REVERSION_TALENT.id),
-        castEfficiency: {
-          suggestion: true,
-        },
       },
       {
         spell: SPELLS.DREAM_BREATH_CAST.id,
